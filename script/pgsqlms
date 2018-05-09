@@ -1857,7 +1857,18 @@ sub pgsql_promote {
 
             # Get the "lsn_location" attribute value for the node, as set during
             # the "pre-promote" action.
-            $ans = _get_priv_attr( 'lsn_location', $node );
+            #
+            # This for loop is a quick-and-dirty workaround for the async attrd issue :
+            # https://github.com/ClusterLabs/PAF/issues/131
+            for (my $try = 1; $try <= 20; $try++) {
+                ocf_log( 'debug', 'pgsql_promote: getting lsn_location attribute of node %s (try %d/20)',
+                    $node, $try);
+
+                $ans = _get_priv_attr( 'lsn_location', $node );
+                last if ( $ans ne '' );
+
+                select( undef, undef, undef, 0.1 );
+            }
 
             if ( $ans eq '' ) {
                 # This should not happen as the "lsn_location" attribute should
